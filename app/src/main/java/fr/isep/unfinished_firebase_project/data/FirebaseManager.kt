@@ -1,51 +1,66 @@
 package fr.isep.unfinished_firebase_project.data
 
-import android.util.Log
-// Importez les classes Firebase nécessaires ici pour les aider un peu
-// import com.google.firebase.auth.FirebaseAuth
-// import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class FirebaseManager {
 
-    // TODO: Initialiser les instances de FirebaseAuth et FirebaseFirestore ici
-    // private val auth: FirebaseAuth = ...
-    // private val db: FirebaseFirestore = ...
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
     /* PARTIE 1 : AUTHENTIFICATION */
 
     fun signUp(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
-        // TODO 1: Créer un utilisateur avec email et mot de passe via Firebase Auth
-        // Indice : utiliser createUserWithEmailAndPassword
-        Log.e("FirebaseManager", "TODO 1: Implémenter l'inscription")
-        onError("Fonctionnalité non implémentée")
+        auth.createUserWithEmailAndPassword(email, pass)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it.message ?: "Erreur inconnue") }
     }
 
     fun login(email: String, pass: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
-        // TODO 2: Connecter l'utilisateur
-        // Indice : utiliser signInWithEmailAndPassword
-        Log.e("FirebaseManager", "TODO 2: Implémenter la connexion")
-        onError("Fonctionnalité non implémentée")
+        auth.signInWithEmailAndPassword(email, pass)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it.message ?: "Erreur inconnue") }
     }
 
     fun logout() {
-        // TODO 3: Déconnecter l'utilisateur
+        auth.signOut()
     }
 
     fun isUserConnected(): Boolean {
-        // TODO 4: Vérifier si un utilisateur est actuellement connecté (currentUser != null)
-        return false
+        return auth.currentUser != null
     }
 
-    /* PARTIE 2 : FIRESTORE (BASE DE DONNÉES) */
+    /* PARTIE 2 : FIRESTORE */
 
     fun addTask(taskTitle: String) {
-        // TODO 5: Ajouter une tâche dans une collection "tasks"
-        // L'objet peut être une simple map : hashMapOf("title" to taskTitle, "done" to false)
-        Log.e("FirebaseManager", "TODO 5: Implémenter l'ajout de tâche")
+        val task = hashMapOf(
+            "title" to taskTitle,
+            "completed" to false,
+            "userId" to auth.currentUser?.uid // Bonne pratique : lier la donnée à l'user
+        )
+
+        db.collection("tasks")
+            .add(task)
+            .addOnSuccessListener {
+                // Succès (optionnel de gérer le callback ici pour un tuto simple)
+            }
     }
 
-    fun getAllTasks(onTasksReceived: (List<String>) -> Unit) {
-        // TODO 6: Récupérer toutes les tâches de la collection "tasks" en temps réel
-        // Indice : utiliser addSnapshotListener
+    // Exemple avec écoute en temps réel (SnapshotListener)
+    fun listenToTasks(onTasksReceived: (List<String>) -> Unit) {
+        db.collection("tasks")
+            // Optionnel : filtrer par utilisateur
+            // .whereEqualTo("userId", auth.currentUser?.uid)
+            .addSnapshotListener { value, error ->
+                if (error != null) {
+                    return@addSnapshotListener
+                }
+
+                val tasks = ArrayList<String>()
+                for (doc in value!!) {
+                    doc.getString("title")?.let { tasks.add(it) }
+                }
+                onTasksReceived(tasks)
+            }
     }
 }
